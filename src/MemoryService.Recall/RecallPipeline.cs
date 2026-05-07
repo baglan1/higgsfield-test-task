@@ -1,131 +1,73 @@
-using MemoryService.Core.Domain;
-using MemoryService.Infrastructure;
-using MemoryService.Llm;
-using Microsoft.EntityFrameworkCore;
-using Pgvector;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace MemoryService.Recall;
 
 public sealed record RecallQuery(string Query, string? SessionId, string? UserId, int MaxTokens);
 public sealed record RecallResult(string Context, IReadOnlyList<RecallCitation> Citations);
 
-public sealed class RecallPipeline(
-    HybridRetriever retriever,
-    QueryRewriter rewriter,
-    MultiHopExpander expander,
-    ContextAssembler assembler,
-    IEmbedder embedder,
-    MemoryDbContext db)
+/// <summary>
+/// Stage-driven recall pipeline. Stages are registered in DI (one class per <see cref="IRecallStage"/>)
+/// and executed in the order specified by <see cref="RecallPipelineOptions.Stages"/>.
+///
+/// To turn off a stage: remove its name from the list.
+/// To reorder: change the position.
+/// To tune: edit the per-stage values in <see cref="RecallPipelineOptions"/>.
+///
+/// All three are exposed via the "Recall" config section (see Program.cs).
+/// </summary>
+public sealed class RecallPipeline
 {
-    private const int    PerSubqueryK            = 30;
-    private const int    MultiHopMaxHops         = 2;
-    private const int    MaxRecentTurns          = 3;
-    private const double MinKeepScore            = 0.005;  // RRF rank-based floor for noise hits
-    private const double VectorSimilarityFloor   = 0.45;   // top RAW cosine similarity must clear this; otherwise the query is treated as off-topic
-    private const float  StableFactConfidence    = 0.7f;
+    private readonly Dictionary<string, IRecallStage> _stages;
+    private readonly RecallPipelineOptions _options;
+    private readonly ILogger<RecallPipeline>? _logger;
+
+    public RecallPipeline(
+        IEnumerable<IRecallStage> stages,
+        IOptions<RecallPipelineOptions> options,
+        ILogger<RecallPipeline>? logger = null)
+    {
+        _stages = stages.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+        _options = options.Value;
+        _logger = logger;
+    }
 
     public async Task<RecallResult> RecallAsync(RecallQuery req, CancellationToken ct)
     {
+        // Input validation — guard the pipeline against missing query/user. (HybridRetrieval
+        // already terminates when the user has no memories, so we don't re-check that here.)
         if (string.IsNullOrWhiteSpace(req.Query) || string.IsNullOrWhiteSpace(req.UserId))
             return new RecallResult("", Array.Empty<RecallCitation>());
 
-        var maxTokens = req.MaxTokens > 0 ? req.MaxTokens : 1024;
-        var userId = req.UserId!;
-
-        // 0. Cold-session shortcut: if the user has no memories, return empty without invoking any LLM.
-        var hasAny = await db.Memories.AsNoTracking().AnyAsync(m => m.UserId == userId && m.Active, ct);
-        if (!hasAny) return new RecallResult("", Array.Empty<RecallCitation>());
-
-        // 1. Query rewrite
-        var subqueries = await rewriter.ExpandAsync(req.Query, ct);
-
-        // 2. Hybrid retrieve per sub-query, fuse with RRF, then average across sub-queries.
-        // Track the top RAW vector similarity across sub-queries — RRF discards score magnitudes
-        // (uses ranks) so we need this separately to detect off-topic queries.
-        var combined = new Dictionary<Guid, double>();
-        double maxVectorSimilarity = 0.0;
-        foreach (var sq in subqueries)
+        var ctx = new RecallContext
         {
-            var qVecRaw = await embedder.EmbedAsync(sq, ct);
-            if (qVecRaw.Length != embedder.Dimension) continue;
-            var qVec = new Vector(qVecRaw);
+            Query    = req,
+            UserId   = req.UserId,
+            MaxTokens = req.MaxTokens > 0 ? req.MaxTokens : 1024,
+        };
 
-            var vec = await retriever.VectorSearchAsync(userId, qVec, PerSubqueryK, ct);
-            if (vec.Count > 0)
-                maxVectorSimilarity = Math.Max(maxVectorSimilarity, vec[0].Score);
-
-            var lex = await retriever.KeywordSearchAsync(userId, sq, PerSubqueryK, ct);
-            var fused = Rrf.Fuse(vec, lex);
-            foreach (var r in fused)
+        foreach (var name in _options.Stages)
+        {
+            if (!_stages.TryGetValue(name, out var stage))
             {
-                combined.TryGetValue(r.Id, out var cur);
-                combined[r.Id] = cur + r.Score / subqueries.Count;
+                _logger?.LogWarning("Recall pipeline references unknown stage '{Name}'; skipping. Registered: {Registered}",
+                    name, string.Join(", ", _stages.Keys));
+                continue;
             }
+
+            try
+            {
+                await stage.RunAsync(ctx, ct);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger?.LogError(ex, "Recall stage '{Name}' threw; aborting pipeline", name);
+                return ctx.Result ?? new RecallResult("", Array.Empty<RecallCitation>());
+            }
+
+            if (ctx.ShortCircuited) break;
         }
 
-        if (combined.Count == 0)
-            return new RecallResult("", Array.Empty<RecallCitation>());
-
-        // 2b. Off-topic gate: if no memory shares meaningful semantic overlap with the query,
-        // suppress the entire response. Without this, Tier-A stable user facts (and any retrieved
-        // tier-B hits) leak into responses for unrelated queries (§9 noise resistance).
-        if (maxVectorSimilarity < VectorSimilarityFloor)
-            return new RecallResult("", Array.Empty<RecallCitation>());
-
-        // 3. Multi-hop expansion seeded by top-K from fused results.
-        var seeds = combined
-            .OrderByDescending(kv => kv.Value)
-            .Take(10)
-            .Select(kv => new RankedMemory(kv.Key, kv.Value))
-            .ToList();
-        var expanded = await expander.ExpandAsync(seeds, MultiHopMaxHops, ct);
-        foreach (var e in expanded)
-        {
-            combined.TryGetValue(e.Id, out var cur);
-            combined[e.Id] = Math.Max(cur, e.Score);
-        }
-
-        // 4. Filter very low-score hits to satisfy noise resistance.
-        var ranked = combined
-            .Where(kv => kv.Value >= MinKeepScore)
-            .OrderByDescending(kv => kv.Value)
-            .Take(40)
-            .ToDictionary(kv => kv.Key, kv => kv.Value);
-
-        if (ranked.Count == 0)
-            return new RecallResult("", Array.Empty<RecallCitation>());
-
-        // 5. Load full memory rows for the candidates.
-        var ids = ranked.Keys.ToList();
-        var memories = await retriever.LoadByIdsAsync(ids, ct);
-
-        // 6. Tier A — stable user facts (active facts, high confidence) regardless of query.
-        var stableFacts = await db.Memories.AsNoTracking()
-            .Where(m => m.UserId == userId && m.Active &&
-                        m.Type == MemoryType.Fact && m.Confidence >= StableFactConfidence)
-            .OrderByDescending(m => m.Confidence)
-            .ThenByDescending(m => m.UpdatedAt)
-            .Take(20)
-            .ToListAsync(ct);
-
-        // 7. Tier B — query-relevant memories (top fused). Exclude any already in Tier A.
-        var stableIds = stableFacts.Select(m => m.Id).ToHashSet();
-        var relevant = memories
-            .Where(m => !stableIds.Contains(m.Id))
-            .OrderByDescending(m => ranked[m.Id])
-            .ToList();
-
-        // 8. Tier C — recent turns from this session.
-        var recent = string.IsNullOrEmpty(req.SessionId)
-            ? new List<Turn>()
-            : await db.Turns.AsNoTracking()
-                .Where(t => t.SessionId == req.SessionId)
-                .OrderByDescending(t => t.Timestamp)
-                .Take(MaxRecentTurns)
-                .ToListAsync(ct);
-
-        var assembled = assembler.Assemble(new TierInputs(stableFacts, ranked, relevant, recent), maxTokens);
-
-        return new RecallResult(assembled.Text, assembled.Citations);
+        return ctx.Result ?? new RecallResult("", Array.Empty<RecallCitation>());
     }
 }

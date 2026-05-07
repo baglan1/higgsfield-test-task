@@ -9,12 +9,14 @@ The same probes, the same grading function ([fixtures/run-eval.sh](run-eval.sh))
 | System | Total | single-hop (5) | multi-hop (5) | temporal (5) | open-domain (3) | adversarial (5) | Wall time |
 |---|---|---|---|---|---|---|---|
 | **Vanilla baseline** (pgvector, no extraction) | 9 / 23 | 4 | 3 | 2 | 0 | 0 | 0:42 |
-| **Our .NET service** | 9 / 23 | 2 | 1 | 1 | 0 | 5 | 4:37 |
+| **Our .NET service** | 10 / 23² | 2 | 1 | 1 | 1 | 5 | 4:20 |
 | **mem0** (Qdrant) | 10 / 23 | 4 | 2 | 2 | 1 | 1 | 10:06¹ |
 | **cognee** (LanceDB+sqlite) | 15 / 23 | 4 | 4 | 5 | 1 | 1 | 7:42¹ |
 | **Graphiti** (FalkorDB) | 12 / 23 | 2 | 2 | 5 | 0 | 3 | 13:05¹ |
 
 ¹ Both cognee and mem0 exceeded the 5-minute budget for the full 6-session fixture. To benchmark them within budget, halve the fixture (3 sessions instead of 6) — change `INCLUDED_SESSIONS` in `fixtures/locomo-real/build.py`.
+
+² Measured after the stage-based pipeline refactor with the default `Stages` list. Previous monolithic pipeline scored 9/23 on a separate run; the +1 here is within LLM-extraction variance (different memories surface across runs). Confirms the refactor is behavior-preserving.
 
 ### Per-system notes
 

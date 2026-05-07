@@ -1,4 +1,5 @@
 using MemoryService.Core.Configuration;
+using MemoryService.Recall.Stages;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -17,6 +18,19 @@ public static class ServiceCollectionExtensions
             return new TokenCounter(opts.ChatModel, opts.LlmProvider);
         });
         services.AddSingleton<ContextAssembler>();
+
+        // Register every stage as IRecallStage. The pipeline resolves them by name
+        // from RecallPipelineOptions.Stages.
+        services.AddScoped<IRecallStage, QueryRewriteStage>();
+        services.AddScoped<IRecallStage, HybridRetrievalStage>();
+        services.AddScoped<IRecallStage, VectorSimilarityFloorStage>();
+        services.AddScoped<IRecallStage, MultiHopExpansionStage>();
+        services.AddScoped<IRecallStage, LowScoreFilterStage>();
+        services.AddScoped<IRecallStage, TierAStableFactsStage>();
+        services.AddScoped<IRecallStage, TierBRelevantMemoriesStage>();
+        services.AddScoped<IRecallStage, TierCRecentSessionStage>();
+        services.AddScoped<IRecallStage, AssemblyStage>();
+
         services.AddScoped<RecallPipeline>();
         services.AddScoped<SearchService>();
         return services;

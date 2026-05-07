@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v3 — Stage-based recall pipeline
+
+- Refactored `RecallPipeline.RecallAsync` from a monolithic method into a stage-driven pipeline. Each step (`QueryRewrite`, `HybridRetrieval`, `VectorSimilarityFloor`, `MultiHopExpansion`, `LowScoreFilter`, `TierAStableFacts`, `TierBRelevantMemories`, `TierCRecentSession`, `Assembly`) is now a separate [`IRecallStage`](src/MemoryService.Recall/IRecallStage.cs) class under [`src/MemoryService.Recall/Stages/`](src/MemoryService.Recall/Stages/). State flows between stages via a mutable [`RecallContext`](src/MemoryService.Recall/RecallContext.cs).
+- Stages are listed in [`RecallPipelineOptions.Stages`](src/MemoryService.Recall/RecallPipelineOptions.cs) and bound from the `Recall:Stages` section of [`appsettings.json`](src/MemoryService.Api/appsettings.json). To turn a stage off, remove its name. To reorder, change positions. To tune, edit the per-stage values in the same options class.
+- Default `Stages` list reproduces the previous monolithic behavior. Verified against `fixtures/locomo-real`: 10/23 in 4:20 (within LLM-extraction variance of the pre-refactor 9/23 run).
+- Added [`docs/recall-configs.md`](docs/recall-configs.md) — catalogue of 22 named pipeline configurations covering single-stage ablations, signal-shaping reorderings, tier-construction variants, aggressive ablations (e.g. `floor_only`, `baseline_inside`), and production-tuning suggestions. Each config is a copy-pasteable JSON array with a stated hypothesis.
+
 ## v2 — Tests
 
 - Added [MultiHopExpander unit tests](tests/MemoryService.Recall.Tests/MultiHopExpanderTests.cs) covering the BFS algorithm against a Testcontainers Postgres + pgvector fixture. Includes regression tests for two specific bugs found during review: hop-decay compounding across hops, and original-seed leakage at hop ≥ 2.

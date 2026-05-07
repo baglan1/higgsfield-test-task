@@ -18,6 +18,8 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 });
 
 builder.Services.Configure<MemoryServiceOptions>(o => MemoryServiceOptionsBinder.Bind(o, builder.Configuration));
+// Recall pipeline order + per-stage tunables. Bind from appsettings.json "Recall" section.
+builder.Services.Configure<RecallPipelineOptions>(builder.Configuration.GetSection("Recall"));
 
 var connStr = builder.Configuration.GetConnectionString("Postgres")
               ?? "Host=localhost;Port=5432;Username=memory;Password=memory;Database=memory";
