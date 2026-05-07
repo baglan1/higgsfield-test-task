@@ -1,0 +1,16 @@
+{
+  "id": "q15_cat2",
+  "category": "temporal",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "How long ago was Caroline's 18th birthday?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "years"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D4:5"
+  ],
+  "_locomo_answer": "10 years ago"
+}

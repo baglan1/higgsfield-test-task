@@ -1,0 +1,17 @@
+{
+  "id": "q16_cat3",
+  "category": "open-domain",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What fields would Caroline be likely to pursue in her educaton?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "psychology"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D1:9",
+    "D1:11"
+  ],
+  "_locomo_answer": "Psychology, counseling certification"
+}

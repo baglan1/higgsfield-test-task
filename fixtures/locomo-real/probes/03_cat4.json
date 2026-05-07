@@ -1,0 +1,16 @@
+{
+  "id": "q03_cat4",
+  "category": "single-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What type of individuals does the adoption agency Caroline is considering support?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "lgbtq"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D2:12"
+  ],
+  "_locomo_answer": "LGBTQ+ individuals"
+}

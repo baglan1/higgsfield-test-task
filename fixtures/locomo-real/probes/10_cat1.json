@@ -1,0 +1,17 @@
+{
+  "id": "q10_cat1",
+  "category": "multi-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What career path has Caroline decided to persue?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "counseling"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D4:13",
+    "D1:11"
+  ],
+  "_locomo_answer": "counseling or mental health for Transgender people"
+}

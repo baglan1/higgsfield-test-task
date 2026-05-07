@@ -1,0 +1,16 @@
+{
+  "id": "q12_cat2",
+  "category": "temporal",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "When did Caroline give a speech at a school?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "2023"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D3:1"
+  ],
+  "_locomo_answer": "The week before 9 June 2023"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "q07_cat1",
+  "category": "multi-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What is Caroline's identity?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "transgender"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D1:5"
+  ],
+  "_locomo_answer": "Transgender woman"
+}

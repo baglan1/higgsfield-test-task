@@ -1,0 +1,16 @@
+{
+  "id": "q18_cat3",
+  "category": "open-domain",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "Would Caroline likely have Dr. Seuss books on her bookshelf?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "since"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D6:9"
+  ],
+  "_locomo_answer": "Yes, since she collects classic children's books"
+}

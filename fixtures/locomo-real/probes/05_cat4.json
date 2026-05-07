@@ -1,0 +1,16 @@
+{
+  "id": "q05_cat4",
+  "category": "single-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What is Caroline excited about in the adoption process?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "creating"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D2:14"
+  ],
+  "_locomo_answer": "creating a family for kids who need one"
+}

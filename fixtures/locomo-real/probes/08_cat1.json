@@ -1,0 +1,17 @@
+{
+  "id": "q08_cat1",
+  "category": "multi-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What is Caroline's relationship status?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "single"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D3:13",
+    "D2:14"
+  ],
+  "_locomo_answer": "Single"
+}

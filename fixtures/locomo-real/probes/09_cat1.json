@@ -1,0 +1,17 @@
+{
+  "id": "q09_cat1",
+  "category": "multi-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "Where did Caroline move from 4 years ago?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "sweden"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D3:13",
+    "D4:3"
+  ],
+  "_locomo_answer": "Sweden"
+}

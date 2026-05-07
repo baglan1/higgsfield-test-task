@@ -1,0 +1,16 @@
+{
+  "id": "q11_cat2",
+  "category": "temporal",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "When did Caroline go to the LGBTQ support group?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "2023"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D1:3"
+  ],
+  "_locomo_answer": "7 May 2023"
+}

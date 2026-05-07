@@ -1,0 +1,16 @@
+{
+  "id": "q06_cat1",
+  "category": "multi-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What did Caroline research?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "adoption"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D2:8"
+  ],
+  "_locomo_answer": "Adoption agencies"
+}

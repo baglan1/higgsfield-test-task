@@ -1,0 +1,16 @@
+{
+  "id": "q21_cat5",
+  "category": "adversarial",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What is Caroline's hand-painted bowl a reminder of?",
+  "max_tokens": 512,
+  "expect_substrings": [],
+  "expect_absent_substrings": [
+    "self"
+  ],
+  "_locomo_evidence": [
+    "D4:5"
+  ],
+  "_locomo_answer": "art and self-expression"
+}

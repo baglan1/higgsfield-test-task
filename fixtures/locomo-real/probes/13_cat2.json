@@ -1,0 +1,16 @@
+{
+  "id": "q13_cat2",
+  "category": "temporal",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "When did Caroline meet up with her friends, family, and mentors?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "2023"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D3:11"
+  ],
+  "_locomo_answer": "The week before 9 June 2023"
+}

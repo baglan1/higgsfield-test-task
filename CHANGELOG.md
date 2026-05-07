@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v2 — Tests
+
+- Added [MultiHopExpander unit tests](tests/MemoryService.Recall.Tests/MultiHopExpanderTests.cs) covering the BFS algorithm against a Testcontainers Postgres + pgvector fixture. Includes regression tests for two specific bugs found during review: hop-decay compounding across hops, and original-seed leakage at hop ≥ 2.
+- Added [recall-quality fixture runner](fixtures/run-eval.sh) — ingests `<dir>/conversations/*.json` via `/turns`, then runs `<dir>/probes/*.json` against `/recall` and grades each probe by substring match. Reports per-category pass/fail.
+- Added [LoCoMo-real fixture](fixtures/locomo-real/) — a 5-minute slice of the actual [snap-research/LoCoMo](https://github.com/snap-research/locomo) `locomo10.json` dataset (1 conversation, 6 sessions, 23 probes balanced across LoCoMo's 5 QA categories). [build.py](fixtures/locomo-real/build.py) converts the upstream format to ours.
+
 ## v1 — Initial implementation
 
 **What's in this version:**

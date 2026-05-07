@@ -1,0 +1,16 @@
+{
+  "id": "q02_cat4",
+  "category": "single-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What are Caroline's plans for the summer?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "researching"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D2:8"
+  ],
+  "_locomo_answer": "researching adoption agencies"
+}

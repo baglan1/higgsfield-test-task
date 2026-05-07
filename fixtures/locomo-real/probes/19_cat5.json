@@ -1,0 +1,16 @@
+{
+  "id": "q19_cat5",
+  "category": "adversarial",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What did Caroline realize after her charity race?",
+  "max_tokens": 512,
+  "expect_substrings": [],
+  "expect_absent_substrings": [
+    "self"
+  ],
+  "_locomo_evidence": [
+    "D2:3"
+  ],
+  "_locomo_answer": "self-care is important"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "q17_cat3",
+  "category": "open-domain",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "Would Caroline still want to pursue counseling as a career if she hadn't received support growing up?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "likely"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D4:15",
+    "D3:5"
+  ],
+  "_locomo_answer": "Likely no"
+}

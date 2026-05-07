@@ -1,0 +1,16 @@
+{
+  "id": "q01_cat4",
+  "category": "single-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What did the charity race raise awareness for?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "mental"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D2:2"
+  ],
+  "_locomo_answer": "mental health"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "q23_cat5",
+  "category": "adversarial",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "Did Caroline make the black and white bowl in the photo?",
+  "max_tokens": 512,
+  "expect_substrings": [],
+  "expect_absent_substrings": [
+    "yes"
+  ],
+  "_locomo_evidence": [
+    "D5:8"
+  ],
+  "_locomo_answer": "No"
+}

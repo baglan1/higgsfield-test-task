@@ -1,0 +1,16 @@
+{
+  "id": "q14_cat2",
+  "category": "temporal",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "How long has Caroline had her current group of friends for?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "years"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D3:13"
+  ],
+  "_locomo_answer": "4 years"
+}

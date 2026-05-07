@@ -1,0 +1,16 @@
+{
+  "id": "q04_cat4",
+  "category": "single-hop",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "Why did Caroline choose the adoption agency?",
+  "max_tokens": 512,
+  "expect_substrings": [
+    "because"
+  ],
+  "expect_absent_substrings": [],
+  "_locomo_evidence": [
+    "D2:12"
+  ],
+  "_locomo_answer": "because of their inclusivity and support for LGBTQ+ individuals"
+}

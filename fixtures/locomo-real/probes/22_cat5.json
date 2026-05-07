@@ -1,0 +1,16 @@
+{
+  "id": "q22_cat5",
+  "category": "adversarial",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What did Caroline and her family do while camping?",
+  "max_tokens": 512,
+  "expect_substrings": [],
+  "expect_absent_substrings": [
+    "explored"
+  ],
+  "_locomo_evidence": [
+    "D4:8"
+  ],
+  "_locomo_answer": "explored nature, roasted marshmallows, and went on a hike"
+}

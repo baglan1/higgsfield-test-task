@@ -1,0 +1,16 @@
+{
+  "id": "q20_cat5",
+  "category": "adversarial",
+  "user_id": "u-locomo-conv-26",
+  "session_id": "s-probe",
+  "query": "What was grandpa's gift to Caroline?",
+  "max_tokens": 512,
+  "expect_substrings": [],
+  "expect_absent_substrings": [
+    "necklace"
+  ],
+  "_locomo_evidence": [
+    "D4:3"
+  ],
+  "_locomo_answer": "necklace"
+}
