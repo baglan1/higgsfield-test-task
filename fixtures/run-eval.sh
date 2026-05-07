@@ -30,32 +30,37 @@ if [[ -n "${MEMORY_AUTH_TOKEN:-}" ]]; then
   AUTH_HEADER=(-H "Authorization: Bearer ${MEMORY_AUTH_TOKEN}")
 fi
 
-echo "=== Cleanup (delete users from previous runs) ==="
-for user in $(jq -rs 'map(.user_id) | unique[]' "$ROOT"/conversations/*.json); do
-  curl -fsS "${AUTH_HEADER[@]}" -X DELETE "$BASE/users/$user" >/dev/null || true
-  echo "  deleted user: $user"
-done
-echo ""
-
-echo "=== Ingesting conversations ==="
-for conv in "$ROOT"/conversations/*.json; do
-  name=$(basename "$conv" .json)
-  user_id=$(jq -r .user_id "$conv")
-  count=$(jq -r '.turns | length' "$conv")
-  echo "  [$name] user=$user_id turns=$count"
-  jq -c '.turns[]' "$conv" | while read -r turn; do
-    body=$(jq -n --argjson t "$turn" --arg u "$user_id" '{
-      session_id: $t.session_id,
-      user_id:    $u,
-      messages:   $t.messages,
-      timestamp:  $t.timestamp,
-      metadata:   {}
-    }')
-    id=$(curl -fsS "${AUTH_HEADER[@]}" -X POST "$BASE/turns" -H 'Content-Type: application/json' -d "$body" | jq -r .id)
-    echo "    turn $id"
+if [[ "${SKIP_INGEST:-0}" == "1" ]]; then
+  echo "=== SKIP_INGEST=1 — reusing existing memories, skipping cleanup + ingestion ==="
+  echo ""
+else
+  echo "=== Cleanup (delete users from previous runs) ==="
+  for user in $(jq -rs 'map(.user_id) | unique[]' "$ROOT"/conversations/*.json); do
+    curl -fsS "${AUTH_HEADER[@]}" -X DELETE "$BASE/users/$user" >/dev/null || true
+    echo "  deleted user: $user"
   done
-done
-echo ""
+  echo ""
+
+  echo "=== Ingesting conversations ==="
+  for conv in "$ROOT"/conversations/*.json; do
+    name=$(basename "$conv" .json)
+    user_id=$(jq -r .user_id "$conv")
+    count=$(jq -r '.turns | length' "$conv")
+    echo "  [$name] user=$user_id turns=$count"
+    jq -c '.turns[]' "$conv" | while read -r turn; do
+      body=$(jq -n --argjson t "$turn" --arg u "$user_id" '{
+        session_id: $t.session_id,
+        user_id:    $u,
+        messages:   $t.messages,
+        timestamp:  $t.timestamp,
+        metadata:   {}
+      }')
+      id=$(curl -fsS "${AUTH_HEADER[@]}" -X POST "$BASE/turns" -H 'Content-Type: application/json' -d "$body" | jq -r .id)
+      echo "    turn $id"
+    done
+  done
+  echo ""
+fi
 
 echo "=== Probes ==="
 pass=0

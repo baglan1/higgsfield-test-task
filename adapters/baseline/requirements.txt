@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+pydantic
+psycopg[binary]
+pgvector
+openai>=1.50

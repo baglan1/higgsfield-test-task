@@ -1,0 +1,33 @@
+name: memory-adapter-mem0
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mem0-adapter:
+    build: .
+    ports:
+      - "8081:8081"
+    environment:
+      OPENAI_API_KEY:     ${OPENAI_API_KEY:-}
+      MEMORY_CHAT_MODEL:  ${MEMORY_CHAT_MODEL:-gpt-4o-mini}
+      MEMORY_EMBED_MODEL: ${MEMORY_EMBED_MODEL:-text-embedding-3-small}
+      MEMORY_AUTH_TOKEN:  ${MEMORY_AUTH_TOKEN:-}
+      QDRANT_HOST:        qdrant
+      QDRANT_PORT:        6333
+      QDRANT_COLLECTION:  mem0
+    depends_on:
+      qdrant:
+        condition: service_healthy
+
+volumes:
+  qdrant-data:

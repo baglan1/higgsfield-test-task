@@ -1,0 +1,18 @@
+name: memory-adapter-cognee
+
+services:
+  cognee-adapter:
+    build: .
+    ports:
+      - "8082:8082"
+    environment:
+      OPENAI_API_KEY:     ${OPENAI_API_KEY:-}
+      MEMORY_CHAT_MODEL:  ${MEMORY_CHAT_MODEL:-gpt-4o-mini}
+      MEMORY_EMBED_MODEL: ${MEMORY_EMBED_MODEL:-text-embedding-3-small}
+      MEMORY_EMBED_DIM:   ${MEMORY_EMBED_DIM:-1536}
+      MEMORY_AUTH_TOKEN:  ${MEMORY_AUTH_TOKEN:-}
+    volumes:
+      - cognee-data:/data
+
+volumes:
+  cognee-data:
