@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: memory
+      POSTGRES_PASSWORD: memory
+      POSTGRES_DB: memory
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memory -d memory"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  memory-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Username=memory;Password=memory;Database=memory;Include Error Detail=true"
+      MEMORY_LLM_PROVIDER: ${MEMORY_LLM_PROVIDER:-openai}
+      MEMORY_CHAT_MODEL: ${MEMORY_CHAT_MODEL:-gpt-4o-mini}
+      MEMORY_EMBED_MODEL: ${MEMORY_EMBED_MODEL:-text-embedding-3-small}
+      MEMORY_EMBED_DIM: ${MEMORY_EMBED_DIM:-1536}
+      MEMORY_AUTH_TOKEN: ${MEMORY_AUTH_TOKEN:-}
+      MEMORY_RERANK: ${MEMORY_RERANK:-0}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_HOST: ${OLLAMA_HOST:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pg-data:

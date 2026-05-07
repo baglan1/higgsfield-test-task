@@ -1,0 +1,10 @@
+{
+  "id": "multihop_dog_owner_city",
+  "fixture": "02_dog_biscuit_berlin",
+  "user_id": "u-fixture-02",
+  "session_id": "s-probe",
+  "query": "what city does the user with the dog Biscuit live in?",
+  "max_tokens": 512,
+  "expect_substrings": ["berlin", "biscuit"],
+  "expect_absent_substrings": []
+}

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>MemoryService.Api</RootNamespace>
+    <UserSecretsId>memory-service-dev</UserSecretsId>
+    <NoWarn>$(NoWarn);CA1707;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi"      Version="10.0.0" />
+    <PackageReference Include="Serilog.AspNetCore"                Version="8.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MemoryService.Core\MemoryService.Core.csproj" />
+    <ProjectReference Include="..\MemoryService.Infrastructure\MemoryService.Infrastructure.csproj" />
+    <ProjectReference Include="..\MemoryService.Llm\MemoryService.Llm.csproj" />
+    <ProjectReference Include="..\MemoryService.Recall\MemoryService.Recall.csproj" />
+  </ItemGroup>
+
+</Project>

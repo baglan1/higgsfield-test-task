@@ -1,0 +1,28 @@
+{
+  "id": "01_employment_evolution",
+  "user_id": "u-fixture-01",
+  "turns": [
+    {
+      "session_id": "s-fixture-01-a",
+      "timestamp": "2025-03-01T10:00:00Z",
+      "messages": [
+        { "role": "user", "content": "I've been working at Stripe as a backend engineer for about three years now." },
+        { "role": "assistant", "content": "Got it — backend engineer at Stripe, three years tenure." }
+      ]
+    },
+    {
+      "session_id": "s-fixture-01-a",
+      "timestamp": "2025-03-01T10:05:00Z",
+      "messages": [
+        { "role": "user", "content": "I'm allergic to shellfish, by the way — keep that in mind for restaurant suggestions." }
+      ]
+    },
+    {
+      "session_id": "s-fixture-01-b",
+      "timestamp": "2025-03-15T14:30:00Z",
+      "messages": [
+        { "role": "user", "content": "Quick update — I just joined Notion as a product manager. Last day at Stripe was Friday." }
+      ]
+    }
+  ]
+}

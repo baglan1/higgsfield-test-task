@@ -1,0 +1,10 @@
+{
+  "id": "opinion_arc_typescript",
+  "fixture": "03_typescript_arc",
+  "user_id": "u-fixture-03",
+  "session_id": "s-probe",
+  "query": "what does the user think about TypeScript?",
+  "max_tokens": 512,
+  "expect_substrings": ["typescript"],
+  "expect_absent_substrings": []
+}

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>MemoryService.Infrastructure</RootNamespace>
+    <!-- NU1903: System.Security.Cryptography.Xml comes in transitively via the dev-time
+         Microsoft.EntityFrameworkCore.Design tool (PrivateAssets="all" keeps it out of runtime). -->
+    <NoWarn>$(NoWarn);CA1707;CS1591;NU1903</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore"            Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0" />
+    <!-- Design is a dev-time tool only (used by `dotnet ef`); PrivateAssets keeps it out of runtime. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design"     Version="10.0.0" PrivateAssets="all" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"    Version="10.0.0" />
+    <PackageReference Include="Pgvector"                                 Version="0.3.1" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore"             Version="0.2.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MemoryService.Core\MemoryService.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,10 @@
+{
+  "id": "noise_off_topic",
+  "fixture": "01_employment_evolution",
+  "user_id": "u-fixture-01",
+  "session_id": "s-probe",
+  "query": "what is the capital of Mongolia?",
+  "max_tokens": 512,
+  "expect_substrings": [],
+  "expect_absent_substrings": ["ulaanbaatar", "mongolia", "stripe", "notion"]
+}

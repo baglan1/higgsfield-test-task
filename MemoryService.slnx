@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MemoryService.Api/MemoryService.Api.csproj" />
+    <Project Path="src/MemoryService.Core/MemoryService.Core.csproj" />
+    <Project Path="src/MemoryService.Infrastructure/MemoryService.Infrastructure.csproj" />
+    <Project Path="src/MemoryService.Llm/MemoryService.Llm.csproj" />
+    <Project Path="src/MemoryService.Recall/MemoryService.Recall.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MemoryService.Concurrency.Tests/MemoryService.Concurrency.Tests.csproj" />
+    <Project Path="tests/MemoryService.Contract.Tests/MemoryService.Contract.Tests.csproj" />
+    <Project Path="tests/MemoryService.Integration.Tests/MemoryService.Integration.Tests.csproj" />
+    <Project Path="tests/MemoryService.Recall.Tests/MemoryService.Recall.Tests.csproj" />
+  </Folder>
+</Solution>

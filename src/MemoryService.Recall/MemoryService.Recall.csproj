@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>MemoryService.Recall</RootNamespace>
+    <NoWarn>$(NoWarn);CA1707;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.Tokenizers"                  Version="0.22.0" />
+    <PackageReference Include="Microsoft.ML.Tokenizers.Data.Cl100kBase"  Version="0.22.0" />
+    <PackageReference Include="Microsoft.ML.Tokenizers.Data.O200kBase"   Version="0.22.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore"            Version="10.0.0" />
+    <PackageReference Include="Pgvector"                                 Version="0.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MemoryService.Core\MemoryService.Core.csproj" />
+    <ProjectReference Include="..\MemoryService.Infrastructure\MemoryService.Infrastructure.csproj" />
+    <ProjectReference Include="..\MemoryService.Llm\MemoryService.Llm.csproj" />
+  </ItemGroup>
+
+</Project>

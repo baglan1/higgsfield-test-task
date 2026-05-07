@@ -1,0 +1,20 @@
+{
+  "id": "02_dog_biscuit_berlin",
+  "user_id": "u-fixture-02",
+  "turns": [
+    {
+      "session_id": "s-fixture-02-a",
+      "timestamp": "2025-04-02T09:00:00Z",
+      "messages": [
+        { "role": "user", "content": "I just moved to Berlin from NYC last month. Loving the slower pace." }
+      ]
+    },
+    {
+      "session_id": "s-fixture-02-a",
+      "timestamp": "2025-04-02T09:10:00Z",
+      "messages": [
+        { "role": "user", "content": "Walking Biscuit this morning along the canal — he loves it." }
+      ]
+    }
+  ]
+}
