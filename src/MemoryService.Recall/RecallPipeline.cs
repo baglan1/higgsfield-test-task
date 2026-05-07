@@ -17,11 +17,12 @@ public sealed class RecallPipeline(
     IEmbedder embedder,
     MemoryDbContext db)
 {
-    private const int PerSubqueryK     = 30;
-    private const int MultiHopMaxHops  = 2;
-    private const int MaxRecentTurns   = 3;
-    private const double MinKeepScore  = 0.005; // RRF + multi-hop combined floor
-    private const float StableFactConfidence = 0.7f;
+    private const int    PerSubqueryK            = 30;
+    private const int    MultiHopMaxHops         = 2;
+    private const int    MaxRecentTurns          = 3;
+    private const double MinKeepScore            = 0.005;  // RRF rank-based floor for noise hits
+    private const double VectorSimilarityFloor   = 0.45;   // top RAW cosine similarity must clear this; otherwise the query is treated as off-topic
+    private const float  StableFactConfidence    = 0.7f;
 
     public async Task<RecallResult> RecallAsync(RecallQuery req, CancellationToken ct)
     {
@@ -39,7 +40,10 @@ public sealed class RecallPipeline(
         var subqueries = await rewriter.ExpandAsync(req.Query, ct);
 
         // 2. Hybrid retrieve per sub-query, fuse with RRF, then average across sub-queries.
+        // Track the top RAW vector similarity across sub-queries — RRF discards score magnitudes
+        // (uses ranks) so we need this separately to detect off-topic queries.
         var combined = new Dictionary<Guid, double>();
+        double maxVectorSimilarity = 0.0;
         foreach (var sq in subqueries)
         {
             var qVecRaw = await embedder.EmbedAsync(sq, ct);
@@ -47,6 +51,9 @@ public sealed class RecallPipeline(
             var qVec = new Vector(qVecRaw);
 
             var vec = await retriever.VectorSearchAsync(userId, qVec, PerSubqueryK, ct);
+            if (vec.Count > 0)
+                maxVectorSimilarity = Math.Max(maxVectorSimilarity, vec[0].Score);
+
             var lex = await retriever.KeywordSearchAsync(userId, sq, PerSubqueryK, ct);
             var fused = Rrf.Fuse(vec, lex);
             foreach (var r in fused)
@@ -57,6 +64,12 @@ public sealed class RecallPipeline(
         }
 
         if (combined.Count == 0)
+            return new RecallResult("", Array.Empty<RecallCitation>());
+
+        // 2b. Off-topic gate: if no memory shares meaningful semantic overlap with the query,
+        // suppress the entire response. Without this, Tier-A stable user facts (and any retrieved
+        // tier-B hits) leak into responses for unrelated queries (§9 noise resistance).
+        if (maxVectorSimilarity < VectorSimilarityFloor)
             return new RecallResult("", Array.Empty<RecallCitation>());
 
         // 3. Multi-hop expansion seeded by top-K from fused results.

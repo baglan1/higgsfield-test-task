@@ -18,7 +18,13 @@ public static class ServiceCollectionExtensions
         var dataSource = dsBuilder.Build();
 
         services.AddSingleton(dataSource);
-        services.AddDbContext<MemoryDbContext>(o => o.UseNpgsql(dataSource, npg => npg.UseVector()));
+        services.AddDbContext<MemoryDbContext>(o => o.UseNpgsql(dataSource, npg =>
+        {
+            npg.UseVector();
+            // Register the enum at the EF layer too. Data-source-level MapEnum lets Npgsql read/write
+            // the value, but EF's parameter binding needs its own registration to send DbType correctly.
+            npg.MapEnum<MemoryType>("memory_type");
+        }));
 
         return services;
     }

@@ -140,12 +140,17 @@ public sealed class TurnService(
     private async Task ApplyCandidateAsync(Turn turn, MemoryCandidate c, Vector embedding, CancellationToken ct)
     {
         // Find similar active memories: same (subject, predicate, aspect) OR vector neighbours.
-        var similar = await db.Memories.AsNoTracking()
+        // Note: project minimally on the SQL side (enum-to-string conversion can't be translated
+        // when the column is a Postgres enum type) and finalize the DTO client-side.
+        var rows = await db.Memories.AsNoTracking()
             .Where(m => m.UserId == turn.UserId && m.Active && m.Subject == c.Subject)
             .OrderBy(m => m.Embedding!.CosineDistance(embedding))
             .Take(SimilarMemoriesForJudge)
-            .Select(m => new SimilarMemoryRef(m.Id, m.Type.ToString().ToLowerInvariant(), m.Subject, m.Predicate, m.Aspect, m.Stance, m.Text))
+            .Select(m => new { m.Id, m.Type, m.Subject, m.Predicate, m.Aspect, m.Stance, m.Text })
             .ToListAsync(ct);
+        var similar = rows
+            .Select(m => new SimilarMemoryRef(m.Id, m.Type.ToString().ToLowerInvariant(), m.Subject, m.Predicate, m.Aspect, m.Stance, m.Text))
+            .ToList();
 
         var decision = await judge.JudgeAsync(c, similar, ct);
 
