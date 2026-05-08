@@ -11,18 +11,11 @@ public sealed class RecallPipelineOptions
     /// To reorder, change the position. Names match the <c>Name</c> property on each
     /// <see cref="IRecallStage"/> implementation (case-insensitive).
     /// </summary>
-    public List<string> Stages { get; set; } = new()
-    {
-        "QueryRewrite",
-        "HybridRetrieval",
-        "VectorSimilarityFloor",
-        "MultiHopExpansion",
-        "LowScoreFilter",
-        "TierAStableFacts",
-        "TierBRelevantMemories",
-        "TierCRecentSession",
-        "Assembly",
-    };
+    // Default is empty: configuration binding for List<T> APPENDS to the existing list
+    // rather than replacing it. Leaving an in-code default would mean every config in
+    // appsettings.json gets the in-code defaults appended after it, breaking ablations.
+    // The "real" default list lives in appsettings.json under Recall:Stages.
+    public List<string> Stages { get; set; } = new();
 
     // ---- per-stage tunables ----
 

@@ -53,6 +53,47 @@ A judge-LLM grader (instead of substring) would likely:
 - Leave the **adversarial gap unchanged** — that's a real architectural difference between systems with and without an off-topic gate
 - Probably narrow the **vanilla–our-service gap** further on most categories, leaving only adversarial as a clear win
 
+## Ablation sweep on locomo-real
+
+22 named pipeline configurations from [docs/recall-configs.md](../docs/recall-configs.md), swept by [fixtures/ablation-runner.sh](ablation-runner.sh). Same fixture, same harness, same DB state (first config does full ingest, the rest reuse pgvector data via `SKIP_INGEST=1`), only the `Recall:Stages` list and tunables vary between rows. Output CSV: [fixtures/ablation-results.csv](ablation-results.csv).
+
+| Config | Total | single (5) | multi (5) | temporal (5) | open (3) | adv (5) |
+|---|---|---|---|---|---|---|
+| **factual_lookup** (no floor, no Tier-A, MultiHopMaxHops=3) | **13 / 23** | 4 | 5 | 2 | 0 | 2 |
+| **no_floor** (default minus VectorSimilarityFloor) | **12 / 23** | 3 | 5 | 2 | 0 | 2 |
+| baseline_inside (Hybrid + TierA + TierB + Assembly) | 9 / 23 | 1 | 2 | 2 | 0 | 4 |
+| no_low_score_filter | 8 / 23 | 1 | 2 | 1 | 0 | 4 |
+| no_tier_a | 8 / 23 | 3 | 2 | 1 | 0 | 2 |
+| no_tier_b | 8 / 23 | 1 | 2 | 1 | 0 | 4 |
+| tier_a_only | 8 / 23 | 1 | 2 | 1 | 0 | 4 |
+| tier_b_only | 8 / 23 | 3 | 2 | 1 | 0 | 2 |
+| floor_only (Hybrid + Floor + TierA + TierB + Assembly) | 8 / 23 | 1 | 2 | 1 | 0 | 4 |
+| tier_a_with_floor | 8 / 23 | 1 | 2 | 1 | 0 | 4 |
+| noisy_traffic (floor=0.55) | 8 / 23 | 2 | 1 | 1 | 0 | 4 |
+| chat_with_recency (MaxRecentTurns=5) | 8 / 23 | 1 | 2 | 1 | 0 | 4 |
+| **default** (full 9-stage pipeline) | 7 / 23 | 2 | 2 | 1 | 0 | 2 |
+| no_query_rewrite | 7 / 23 | 2 | 2 | 1 | 0 | 2 |
+| no_multihop | 7 / 23 | 2 | 2 | 1 | 0 | 2 |
+| no_tier_c | 7 / 23 | 2 | 2 | 1 | 0 | 2 |
+| floor_after_multihop | 7 / 23 | 2 | 2 | 1 | 0 | 2 |
+| filter_before_multihop | 7 / 23 | 2 | 2 | 1 | 0 | 2 |
+| floor_last_in_shaping | 7 / 23 | 2 | 2 | 1 | 0 | 2 |
+| recent_first | 7 / 23 | 2 | 2 | 1 | 0 | 2 |
+| degenerate (Hybrid + Assembly only) | 5 / 23 | 0 | 0 | 0 | 0 | 5 |
+| multihop_only (Hybrid + MultiHop + TierB + Assembly) | 5 / 23 | 0 | 0 | 0 | 0 | 5 |
+
+### What this tells us
+
+**The 0.45 vector floor is overshooting on this fixture.** Removing it (`no_floor`) lifts total from 7→12 — the entire jump comes from multi-hop (2→5) and a small bump in single-hop (2→3). The floor is short-circuiting queries whose top raw cosine sits just below 0.45, even though hybrid+lexical+multi-hop would have surfaced the answer. Adversarial does *not* drop when the floor is removed (still 2/5) — on this re-ingested data, several adversarial probes get filtered by other downstream conditions, so the floor's value is smaller than the earlier comparison run suggested.
+
+**Tunable beats topology.** `factual_lookup` (13/23) and `no_floor` (12/23) are the only configs that meaningfully outperform the default; both win by removing or relaxing the floor. Pure reorderings — `floor_after_multihop`, `filter_before_multihop`, `floor_last_in_shaping`, `recent_first` — all land on the same 7/23 as default. Order of stages doesn't move the needle on this fixture; whether the floor fires (and how strict it is) does. This also confirms the configuration plumbing is faithful: identical retrieval+assembly behavior shows up as identical scores across reordered runs, so any score delta we *do* see is signal, not config drift.
+
+**The "degenerate baseline" (5/23 from 5/5 adversarial) is a useful zero-line.** With only `HybridRetrieval + Assembly` (no Tier stages populating `RecallContext.StableFacts/Relevant/RecentTurns`), Assembly returns empty markdown — and substring-grading awards 5/5 on adversarial probes that *expect* empty answers. This is the "do nothing and still get points" floor. Any config scoring ≤5/23 on substantive categories isn't actually retrieving anything; it's just refusing every query. `multihop_only` falls into the same bucket because `TierBRelevantMemories` reads from `Ranked` which is populated by `LowScoreFilter` — without the filter stage, the tier is empty.
+
+**Default (full 9-stage) underperforms its own subsets.** This is the design takeaway: the current default isn't pareto-optimal. A pruned pipeline (`factual_lookup`: drop QueryRewrite, drop floor, drop Tier-A and Tier-C, raise multi-hop to 3) tops the table at 13/23. The cost is adversarial drops from default's 2 to 2 (no change here) — but on the previously-ingested run that produced the public 10/23 number, adversarial was 5/5 with the floor, so this trade-off is data-dependent. Treat 12–13/23 as the upper bound *this pipeline can reach without judge-LLM grading*; the gap to cognee's 15/23 is fundamentally an architecture gap (graph KG vs flat embeddings), not a tuning gap.
+
+**Caveat — extraction variance is non-trivial.** The default 9-stage pipeline scored 10/23 in the published table above (different ingest run) and 7/23 here (this ingest run). The corpus is the same; the LLM extractor's outputs vary turn-to-turn. ~3 probes' worth of swing between ingest runs is the noise floor for any single-row comparison; only deltas larger than that should be read as architectural signal.
+
 ## How to add another adapter to this table
 
 1. Build the adapter under `adapters/<system>/` with a self-contained `docker-compose.yml`.
