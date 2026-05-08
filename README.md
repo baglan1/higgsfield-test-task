@@ -1,26 +1,56 @@
 # Memory Service
 
-A Dockerized HTTP memory service for an AI agent, built in .NET 8. Ingests conversation turns, extracts structured knowledge with an LLM, handles fact evolution and supersession, and answers `/recall` queries under a token budget.
+A Dockerized HTTP memory service for an AI agent, built in .NET 10. Ingests conversation turns, extracts structured knowledge with an LLM, handles fact evolution and supersession, and answers `/recall` queries under a token budget.
 
 Built for the Higgsfield AI Engineering Challenge.
 
 ## Quick start
 
+You need Docker (with Compose) and an OpenAI API key. Postgres, the .NET runtime, and all dependencies come from the compose stack — nothing else to install locally.
+
 ```bash
+# 1. Create your local env file from the template
 cp .env.example .env
-# put OPENAI_API_KEY=sk-... into .env
+
+# 2. Edit .env and put your OpenAI key in:
+#       OPENAI_API_KEY=sk-...
+#    The other vars in the template have sensible defaults; the only required
+#    edit is OPENAI_API_KEY (or the Anthropic/Ollama equivalent if you switch
+#    MEMORY_LLM_PROVIDER). MEMORY_AUTH_TOKEN is optional — leave it empty for
+#    open access, or set it (e.g. MEMORY_AUTH_TOKEN=token123) to require a
+#    bearer token on every endpoint except /health.
+
+# 3. Bring up the stack (memory-service + postgres with named volume)
 docker compose up -d
+
+# 4. Wait for health
 until curl -sf http://localhost:8080/health; do sleep 1; done
-# the eval can now point at http://localhost:8080
+
+# 5. Smoke test
+curl -X POST http://localhost:8080/turns -H 'Content-Type: application/json' \
+  -d '{"session_id":"smoke","user_id":"u1","messages":[{"role":"user","content":"I just moved to Berlin"}],"timestamp":"2026-05-08T12:00:00Z","metadata":{}}'
+
+curl -X POST http://localhost:8080/recall -H 'Content-Type: application/json' \
+  -d '{"query":"where does the user live?","session_id":"smoke","user_id":"u1","max_tokens":512}'
 ```
 
+If you set `MEMORY_AUTH_TOKEN`, prepend `-H "Authorization: Bearer $MEMORY_AUTH_TOKEN"` to every request except `/health`.
+
 The default port is **8080**. All seven contract endpoints from §3 are implemented (`GET /health`, `POST /turns`, `POST /recall`, `POST /search`, `GET /users/{user_id}/memories`, `DELETE /sessions/{session_id}`, `DELETE /users/{user_id}`).
+
+To run the recall fixture against a live stack:
+
+```bash
+fixtures/run-eval.sh fixtures/locomo-real
+# or, if memories are already ingested and you only want to re-grade probes:
+SKIP_INGEST=1 fixtures/run-eval.sh fixtures/locomo-real
+```
 
 ## Architecture
 
 ```
    ┌────────────────────────────────────────────────────────┐
-   │                ASP.NET Core 8 minimal APIs              │
+   │               ASP.NET Core 10 minimal APIs              │
    │ /health  /turns  /recall  /search  /users/...  /delete │
    └─────────────┬────────────────┬───────────────┬─────────┘
                  │                │               │
@@ -81,29 +111,62 @@ What we miss: long-running narrative events that span many turns; first-class te
 
 ## Recall strategy
 
-`POST /recall` end-to-end:
+`POST /recall` is a **stage-driven pipeline**. Each step is a separate `IRecallStage` class registered in DI; the order and on/off state of every step come from `Recall:Stages` in [appsettings.json](src/MemoryService.Api/appsettings.json). Per-stage tunables (`PerSubqueryK`, `MultiHopMaxHops`, `MaxRankedTake`, etc.) live in [RecallPipelineOptions](src/MemoryService.Recall/RecallPipelineOptions.cs) under the same `Recall` section. Source: [src/MemoryService.Recall/Stages/](src/MemoryService.Recall/Stages/) and [RecallPipeline.cs](src/MemoryService.Recall/RecallPipeline.cs).
 
-1. **Query rewrite** is gated on length (≤3 words) or pronoun/anaphora presence. Otherwise the raw query is used as the only sub-query. Saves a wasted LLM call on most queries.
-2. **Hybrid retrieve** per sub-query:
-   - **Vector**: `embedding <=> :q_vec` (cosine distance via HNSW), top 30, filtered to `active = true` and the requesting user.
-   - **Lexical**: `ts @@ plainto_tsquery('english', :q)` ordered by `ts_rank`, top 30. The `ts` column is generated from `text`, so it stays consistent.
-3. **RRF fusion** with `k = 60`, weights `vector 0.6 / lexical 0.4`. Defended below.
-4. **Cross sub-query averaging**: each memory's score is averaged across sub-queries it appeared in, so multi-hop sub-queries reinforce each other rather than dominating.
-5. **Multi-hop expansion**: top 10 fused results seed a 2-hop traversal of `memory_edges` with depth-decay (hop-1 = 0.6×seed, hop-2 = 0.36×seed). Pulls in the "user lives in Berlin" memory when the user asked about "the dog Biscuit's owner's city".
-6. **Noise resistance**: results below `MinKeepScore = 0.005` are dropped; off-topic queries return `{"context": "", "citations": []}` with a 200.
-7. **Tier-budget assembly** under `max_tokens` using `Microsoft.ML.Tokenizers` (cl100k_base, ×1.15 safety factor for non-OpenAI providers):
-   - **Tier A — stable user facts** (active facts, confidence ≥ 0.7): up to **30%** of budget.
-   - **Tier B — query-relevant memories** (top fused, excluding Tier A): up to **50%** of budget.
-   - **Tier C — recent session context** (last 3 turns of the same session): up to **20%** of budget.
-   - Spillover redistributes A → B → C; if any tier consumes less than its share, the leftover increases the next tier's allowance. This prefers stable facts over recency, but never starves recency entirely.
-8. **Format** as markdown with the same section headers shown in the task example.
-9. **Citations**: one per included memory with `turn_id = source_turn_id`, the fused score, and a 160-char snippet.
+### Default configuration
+
+After the v4 ablation sweep ([fixtures/RESULTS.md](fixtures/RESULTS.md), [fixtures/ablation-results.csv](fixtures/ablation-results.csv)), the default stage list is the `factual_lookup` configuration — pruned from the original 9-stage pipeline because the previous default was *not* pareto-optimal on the LoCoMo fixture. Removing the vector floor and Tier-A pre-load gained 6 probes' worth of recall (7/23 → 13/23).
+
+```jsonc
+"Recall": {
+  "Stages": [
+    "HybridRetrieval",
+    "MultiHopExpansion",
+    "LowScoreFilter",
+    "TierBRelevantMemories",
+    "Assembly"
+  ],
+  "PerSubqueryK": 30,
+  "MultiHopMaxHops": 3,
+  "MultiHopSeedTopK": 10,
+  "MaxRecentTurns": 3,
+  "MinKeepScore": 0.005,
+  "VectorSimilarityFloor": 0.45,
+  "MaxRankedTake": 40,
+  "StableFactConfidence": 0.7,
+  "StableFactsTopK": 20
+}
+```
+
+### Stages
+
+The following stages are available; the default pipeline uses the bolded ones.
+
+1. `QueryRewrite` — gated on length (≤3 words) or pronoun/anaphora presence. Expands ambiguous queries into 2–3 sub-queries via LLM. Disabled by default: it cost a call without consistently moving the score on the fixture.
+2. **`HybridRetrieval`** — per sub-query: vector top-K (`embedding <=> :q_vec` via HNSW, `PerSubqueryK = 30`) + lexical top-K (`ts @@ plainto_tsquery`, ordered by `ts_rank`), fused with RRF (`k = 60`, vector 0.6 / lexical 0.4). Cross-sub-query scores are averaged so reinforcement happens through agreement, not domination.
+3. `VectorSimilarityFloor` — short-circuits with empty context if the top raw cosine across sub-queries is below `VectorSimilarityFloor = 0.45`. Disabled by default: on the fixture, the threshold was overshooting and dropping queries whose top match sat just below 0.45 even when hybrid + multi-hop would have surfaced the answer. Re-enable in deployments that prioritise off-topic refusal over recall.
+4. **`MultiHopExpansion`** — seeds the top `MultiHopSeedTopK = 10` fused results into a BFS over `memory_edges` up to `MultiHopMaxHops = 3` (default was 2, raised to 3 in v4). Hop-N gets `seed × 0.6^N` (decay does *not* compound across hops; original seeds never appear in the output — both regression-tested in [MultiHopExpanderTests](tests/MemoryService.Recall.Tests/MultiHopExpanderTests.cs)).
+5. **`LowScoreFilter`** — drops any candidate below `MinKeepScore = 0.005`, then caps to `MaxRankedTake = 40`. Populates `RecallContext.Ranked`, which downstream Tier B / C stages read from.
+6. `TierAStableFacts` — selects up to `StableFactsTopK = 20` active facts with `confidence ≥ StableFactConfidence = 0.7` for prepending under "Known facts about this user". Disabled by default — on this fixture it was diluting tier-B's budget more often than it was helping.
+7. **`TierBRelevantMemories`** — query-relevant memories from `Ranked`, formatted under "Relevant from recent conversations".
+8. `TierCRecentSession` — the last `MaxRecentTurns = 3` turns from the same session. Disabled by default — the agent typically already has these in its session context.
+9. **`Assembly`** — packs Tiers A/B/C into a markdown context under `max_tokens` using `Microsoft.ML.Tokenizers` (cl100k_base, ×1.15 safety factor for non-OpenAI providers). Tier weights are 30% / 50% / 20%; spillover redistributes A → B → C. Returns the citation list (one per memory: `turn_id`, fused score, 160-char snippet).
+
+### Reconfiguring the pipeline
+
+Edit `Recall:Stages` in `appsettings.json` (or override via the standard ASP.NET configuration providers — env vars `Recall__Stages__0=...`, `Recall__Stages__1=...`, etc.). Stage names match the `Name` property on each `IRecallStage` (case-insensitive). Unknown names are skipped with a warning.
+
+A catalogue of named configurations — `default`, `no_floor`, `factual_lookup`, `chat_with_recency`, etc. — lives in [docs/recall-configs.md](docs/recall-configs.md), and the sweep harness for measuring them is [fixtures/ablation-runner.sh](fixtures/ablation-runner.sh).
+
+> ⚠️ `Recall:Stages` is bound from configuration as a list. ASP.NET Core's `IConfiguration` *appends* to in-code defaults rather than replacing them, so the in-code default for `Stages` is intentionally an empty list — the real default lives only in `appsettings.json`. If you add a new override file, set `Stages` explicitly; don't rely on inheritance.
 
 ### Why these numbers
 
 - **RRF k=60**: standard from the original paper; smooth enough to avoid rank-1 domination.
 - **Vector 0.6 / lexical 0.4**: vector wins on paraphrase and concept queries (the common case in conversation memory); lexical helps on proper-noun and exact-token queries ("Biscuit", "Notion") where embeddings dilute the signal.
 - **Tier 30/50/20**: Tier A guarantees the agent always sees the most-load-bearing facts even if the query was ambiguous; Tier B is the largest because it directly answers the asked question; Tier C is the smallest and most expendable because it overlaps with whatever the agent already has in its session context.
+- **MultiHopMaxHops = 3** (vs prior 2): two hops covered the "user owns Biscuit → user lives in Berlin" pattern, but the LoCoMo fixture has chains of three (event → person → relationship → outcome). Raised to 3 with the same per-hop decay.
+- **VectorSimilarityFloor disabled**: on the LoCoMo fixture, removing the floor lifted multi-hop from 2/5 → 5/5 with no adversarial regression on the same ingest. The trade-off is data-dependent (an earlier ingest hit 5/5 adversarial *with* the floor); leave it enabled if your traffic is noisy.
 
 ## Fact evolution
 
